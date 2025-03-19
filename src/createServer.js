@@ -8,11 +8,11 @@ const htmlForm = `
 <html>
   <head>
     <meta charset="UTF-8">
-    <title>File Compression</title>
+    <title>Add expense</title>
   </head>
 
   <body>
-    <h1>File Compression</h1>
+    <h1>Add expense</h1>
     <form action="/add-expense" method="POST">
       <label for="date">Select a date: </label>
       <input id="date" name="date" type="date" required><br><br>
@@ -28,6 +28,23 @@ const htmlForm = `
   </body>
 </html>
 `;
+
+function getData(text, contentType) {
+  switch (contentType) {
+    case 'application/json':
+      return JSON.parse(text);
+
+    case 'application/x-www-form-urlencoded':
+      return text
+        .split('&')
+        .map((v) => v.split('='))
+        .reduce((acc, [key, value]) => {
+          acc[key] = decodeURIComponent(value);
+
+          return acc;
+        }, {});
+  }
+}
 
 function createServer() {
   return http.createServer((req, res) => {
@@ -50,17 +67,7 @@ function createServer() {
 
       req.on('end', () => {
         const text = Buffer.concat(chunks).toString('utf-8');
-
-        const data =
-          JSON.parse(text) ||
-          text
-            .split('&')
-            .map((v) => v.split('='))
-            .reduce((acc, [key, value]) => {
-              acc[key] = decodeURIComponent(value);
-
-              return acc;
-            }, {});
+        const data = getData(text, req.headers['content-type']);
 
         const keys = Object.keys(data);
 
@@ -77,13 +84,7 @@ function createServer() {
           );
         }
 
-        const responseData = JSON.stringify(data, null, 2);
-
-        if (req.url === '/submit-expense') {
-          res.writeHead(200, 'OK', { 'content-type': 'application/json' });
-
-          return res.end(responseData);
-        }
+        const responseData = JSON.stringify(data);
 
         fs.writeFile('./db/expense.json', responseData, (err) => {
           if (err) {
